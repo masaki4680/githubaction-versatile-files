@@ -1,0 +1,69 @@
+name: crate db documents
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 0 * * 6'
+    
+permissions: write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    # IPの取得
+    - name: Public IP
+      id: ip
+      uses: haythem/public-ip@v1.3
+    # AWS認証
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: "ap-northeast-1"
+
+    # セキュリティグループにIPを追加する（セキュリティグループに穴をあける）
+    - name: register ip address
+      run: |
+        aws ec2 authorize-security-group-ingress --group-id ${{ secrets.RDS_SECURITY_GROUP_ID }} \
+        --ip-permissions IpProtocol=tcp,FromPort=3306,ToPort=3306,\
+        IpRanges='[{CidrIp=${{ steps.ip.outputs.ipv4 }}/32,Description="GithubAction FROM le-company/mi-RDB.repo"}]'
+
+    # tblsを使用する ref:https://github.com/k1LoW/tbls
+    - name: install tbls
+      run: |
+        curl -OL https://github.com/k1LoW/tbls/releases/download/v1.56.6/tbls_v1.56.6_linux_amd64.tar.gz
+        tar xf tbls_v1.56.6_linux_amd64.tar.gz -C /usr/local/bin/
+
+    # push
+    - uses: actions/checkout@v3
+    - name: create file
+      env:
+        HOST: ${{ secrets.DB_HOST }}
+        PASS: ${{ secrets.DB_PASS }}
+      run: |
+        ./update_all.sh
+         echo "coung changed files : $(git status --porcelain | wc -l)"
+    - name: Commit & push files
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add .
+        git commit -m "Add changes" -a || echo "No changes to commit"
+        git push
+  
+    # 追加したIPをセキュリティグループから除外する（セキュリティグループにあけた穴をふさぐ）
+    - name: Revoke security group
+      if: always()
+      run: |
+        aws ec2 revoke-security-group-ingress --group-id ${{ secrets.RDS_SECURITY_GROUP_ID }} --protocol tcp --port 3306 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        
+    - name: Microsoft Teams Notification
+      uses: skitionek/notify-microsoft-teams@master
+      if: failure()
+      with:
+        webhook_url: ${{ secrets.MSTEAMS_WEBHOOK }}
+        needs: ${{ toJson(needs) }}
+        job: ${{ toJson(job) }}
+        steps: ${{ toJson(steps) }}
