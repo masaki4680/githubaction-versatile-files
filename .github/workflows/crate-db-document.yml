@@ -1,8 +1,9 @@
 name: crate db documents
 on:
   workflow_dispatch:
-  schedule:
-    - cron:  '0 0 * * 6'
+
+#   schedule:
+#     - cron:  '0 0 * * 6'
     
 permissions: write-all
 
