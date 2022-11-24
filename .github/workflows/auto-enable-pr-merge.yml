@@ -1,0 +1,32 @@
+name: auto enable pull request merge
+
+on:
+  pull_request:
+    branches:
+        - develop
+        - master
+
+jobs:
+  auto-enable-pr-merge:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.auto_merge }}
+    steps:
+        - name: Get pull request number
+          id: pre_id
+          run: |
+              echo "pre_id=$(echo $GITHUB_REF | sed -e 's/[^0-9]//g')" >>$GITHUB_OUTPUT
+
+        - name: ver develop Enable Pull Request Automerge
+          if: ${{ (steps.pre_id.outputs.pre_id != '') && (github.base_ref == 'develop') }}
+          uses: peter-evans/enable-pull-request-automerge@v2
+          with:
+              token: ${{ secrets.DEPENDABOT_AUTOMATION_TOKEN }}
+              pull-request-number: ${{ steps.pre_id.outputs.pre_id }}
+              merge-method: squash
+
+        - name: ver master Enable Pull Request Automerge
+          if: ${{ (steps.pre_id.outputs.pre_id != '') && (github.base_ref == 'master') }}
+          uses: peter-evans/enable-pull-request-automerge@v2
+          with:
+              token: ${{ secrets.DEPENDABOT_AUTOMATION_TOKEN }}
+              pull-request-number: ${{ steps.pre_id.outputs.pre_id }}
