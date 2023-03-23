@@ -18,7 +18,7 @@ jobs:
 
         - name: ver develop Enable Pull Request Automerge
           if: ${{ (steps.pre_id.outputs.pre_id != '') && (github.base_ref == 'develop') }}
-          uses: peter-evans/enable-pull-request-automerge@v2
+          uses: peter-evans/enable-pull-request-automerge@v3
           with:
               token: ${{ secrets.DEPENDABOT_AUTOMATION_TOKEN }}
               pull-request-number: ${{ steps.pre_id.outputs.pre_id }}
@@ -26,7 +26,7 @@ jobs:
 
         - name: ver master Enable Pull Request Automerge
           if: ${{ (steps.pre_id.outputs.pre_id != '') && (github.base_ref == 'master') }}
-          uses: peter-evans/enable-pull-request-automerge@v2
+          uses: peter-evans/enable-pull-request-automerge@v3
           with:
               token: ${{ secrets.DEPENDABOT_AUTOMATION_TOKEN }}
               pull-request-number: ${{ steps.pre_id.outputs.pre_id }}
